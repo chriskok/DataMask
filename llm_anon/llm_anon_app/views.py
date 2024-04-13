@@ -7,10 +7,32 @@ from django.views import generic
 import json
 import requests
 
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.vectorstores import FAISS
+from langchain_openai import OpenAIEmbeddings
+import os
+
+import openai
+from my_secrets import my_secrets
+openai_key = my_secrets.get('openai_key')
+openai.api_key = openai_key   
+os.environ["OPENAI_API_KEY"] = openai_key
+
+import google.generativeai as genai
+genai.configure(api_key=my_secrets.get('gemini_key'))
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
+# model = genai.GenerativeModel('gemini-pro')
+
 from .models import *
 from .forms import *
 from .ner import *
 from .masking import *
+
+therapy_loader = PyPDFLoader("books/therapy_textbook.pdf")
+# therapy_pages = therapy_loader.load_and_split()
+# choose to load only pages 20-520
+therapy_pages = therapy_loader.load_and_split()
+therapy_faiss_index = FAISS.from_documents(therapy_pages, OpenAIEmbeddings())
 
 class IndexView(generic.ListView):
     template_name = "llm_anon_app/index.html"
@@ -154,6 +176,21 @@ def ner(request, session_id=None):
             session_obj.use_case = UseCase.objects.get(use_case=use_case)
             session_obj.save()
 
+            # update the choice_dict defaults
+            default_dict = determine_defaults(ner_dict)  # determine the best default choices for masking
+            anon_input = AnonymizedInput.objects.get(initial_input=initial_input)
+
+            # find all entity_types in ner_dict
+            entity_types = set()
+            for entity in ner_dict.values():
+                entity_types.add(entity["entity_type"])
+
+            # only keep the default choices for the entity types in the ner_dict
+            default_dict = {k: v for k, v in default_dict.items() if k in entity_types}
+            anon_input.choice_dict = json.dumps(default_dict)
+            anon_input.save()
+            print(anon_input.choice_dict)
+
             # reload page with session id
             return HttpResponseRedirect(reverse("llm_anon_app:ner", args=(session_obj.session_id,)))
 
@@ -163,11 +200,15 @@ def ner(request, session_id=None):
         else:
             form = InitialInputForm()  # empty form
 
+    ner_dict = json.loads(initial_input.ner_dict) if initial_input.ner_dict != "" else {}
+
+    # default_dict = determine_defaults(ner_dict)  # determine the best default choices for masking
+
     # create a form for the user to input text
     context = {
         "session": session_obj,
         "initial_input": initial_input,
-        "ner_dict": json.loads(initial_input.ner_dict) if initial_input.ner_dict != "" else {},
+        "ner_dict": ner_dict,
         "use_cases": UseCase.objects.all(),
         "form": form,
     }
@@ -186,8 +227,96 @@ def ner_dict_update(request):
         return HttpResponse("Success")
     else:
         return HttpResponse("Failure")
+
+def convert_choice_dict(choice_dict):
+    new_choice_dict = {}
+    for entity in choice_dict:
+        if choice_dict[entity] == "REDACT":
+            new_choice_dict[entity] = "Complete Mask"
+        elif choice_dict[entity] == "PERTURB":
+            new_choice_dict[entity] = "Perturb"
+        elif choice_dict[entity] == "GROUP":
+            new_choice_dict[entity] = "Group-based"
+        else:
+            new_choice_dict[entity] = "None"
+    return new_choice_dict
+
+# function using LangChain RAG for determining the best default choices for masking
+def determine_defaults(ner_dict):
+    # get all entity types available in the NER dictionary
+    entity_types = set()
+    for entity in ner_dict.values():
+        entity_types.add(entity["entity_type"])
     
-# TODO: create function for allowing the user to change their use case
+    # for each of these entity types, mention what to look for in books - PERSON, ORGANIZATION, LOCATION, DATE, TIME, MONEY, PERCENT, FACILITY, GPE, CARDINAL,
+    entity_type_search = {
+        "PERSON": "Look for names of people in the book",
+        "ORGANIZATION": "Look for names of organizations in the book",
+        "LOCATION": "Look for names of locations in the book",
+        "DATE": "Look for dates in the book",
+        "TIME": "Look for times in the book",
+        "MONEY": "Look for monetary values in the book",
+        "PERCENT": "Look for percentages in the book",
+        "FACILITY": "Look for names of facilities in the book",
+        "GPE": "Look for names of geopolitical entities in the book",
+        "CARDINAL": "Look for cardinal numbers in the book",
+    }
+
+    # # get the best pages that relate to the entity types
+    # relevant_pages_dict = {}
+    # for entity_type in entity_types:
+    #     docs = therapy_faiss_index.similarity_search(entity_type_search[entity_type], k=3)
+    #     relevant_pages_dict[entity_type] = docs
+
+    # get the best choices for each entity type between:
+    # data redaction (full anonymization, e.g. replacing with [REDACTED] or [MASKED])
+    # perturbation (replacing these entities, e.g. replacing names with other names)
+    # group based anonymization (e.g. replacing age with age range, replacing locations with generic locations)
+    # defaults = {}
+    # for entity_type, docs in relevant_pages_dict.items():
+    #     # one string containing all the relevant text articles
+    #     relevant_docs = "\n".join([doc.page_content for doc in docs])
+
+    #     response = model.generate_content("Please use these relevant textbook pages below to determine what method would be best to mask the following entity type: " + entity_type + ".\nStrictly keep the response format to one of the following [REDACTED], [PERTURB], [GROUP].\n" + "1. REDACT (full anonymization, e.g. replacing with [REDACTED] or [MASKED])\n2. PERTURB (replacing these entities, e.g. replacing names with other names)\n3. GROUP (group-based anonymization e.g. replacing age with age range, replacing locations with generic locations)\n\n" + relevant_docs,
+    #     generation_config=genai.types.GenerationConfig(temperature=0.0))
+
+    #     defaults[entity_type] = response.text
+
+    # now instead, make it one prompt with all the entity types
+    docs = therapy_faiss_index.similarity_search("Please find the most relevant pages in the textbook to determine the best masking method for the following entity types: " + ", ".join(entity_types), k=10)
+
+    prompt = "Please use these relevant textbook pages below to determine what method would be best to mask the following entity types:\n" + "\n".join(entity_types) + "\nMake a python dictionary of these where we have {<entity_type>: <Strictly one of the following - REDACTED, PERTURB, GROUP>, ...}. Descriptions of the masking options: \n1. REDACT (full anonymization, e.g. replacing with [REDACTED] or [MASKED])\n2. PERTURB (replacing these entities, e.g. replacing names with other names)\n3. GROUP (group-based anonymization e.g. replacing age with age range, replacing locations with generic locations)\n\nTEXTBOOK PAGES: " + "\n".join([doc.page_content for doc in docs])
+
+    # NOTE: Gemini is just not that good yet at generating the right response here!
+    # response = model.generate_content(prompt, generation_config=genai.types.GenerationConfig(temperature=0.0))
+
+    # # get only the text between the curly braces
+    # response_text = response.text
+    # response_text = response_text[response_text.find("{")+1:response_text.find("}")]
+    # response_text = response_text.replace("\n", "")
+
+    # print(response.text)
+
+    # defaults = json.loads(response.text)
+    # TODO: replace for law and nursing too
+    defaults = {
+        "PERSON": "PERTURB",
+        "ORGANIZATION": "PERTURB",
+        "LOCATION": "GROUP",
+        "DATE": "PERTURB",
+        "TIME": "PERTURB",
+        "MONEY": "GROUP",
+        "PERCENT": "GROUP",
+        "FACILITY": "PERTURB",
+        "GPE": "PERTURB",
+        "CARDINAL": "GROUP",
+    }
+
+    defaults = convert_choice_dict(defaults)
+
+    print(defaults)
+
+    return defaults
     
 def masking(request, session_id):
     session_obj = Session.objects.get(session_id=session_id)
@@ -203,7 +332,6 @@ def masking(request, session_id):
         else:
             form = InitialInputForm()  # empty form
     
-    # TODO: make it do differnt things if you change the form --> one way is to look up Django Forms or the example above
     context = {
         "session": session_obj,
         "initial_input": initial_input,
