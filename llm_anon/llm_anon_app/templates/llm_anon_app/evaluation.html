@@ -1,22 +1,27 @@
 {% extends "llm_anon_app/base.html" %}
 {% load crispy_forms_tags %}
 
-{% block title %}LLM Anonymization - Evaluation{% endblock %}
+{% block title %}DataMask - Evaluation{% endblock %}
 
 {% block content %}
     
-<h1>Session: {{ session.session_id }}</h1>
+<!-- <h1>Session: {{ session.session_id }}</h1> -->
 
 <br>
 
-<div class="container">
+<!-- <div class="container"> -->
+
+<h3><b> Masked Input</b></h3>
+<div class="ps-1 bg-light border border-3 rounded"> {{ anon_input.anon_input_text|linebreaksbr }} </div>
+
+<br>
 
 {% if anon_output|length > 1 %}
         <div class="row">
             {% for output in anon_output %}
             <div class="col">
                 <h2><b> LLM Output {{ forloop.counter }} </b></h2>
-                <div class="ps-1 bg-light border border-3 rounded"> {{ output.unmasked_output_text }} </div>
+                <div class="ps-1 bg-light border border-3 rounded"> {{ output.llm_output_text|linebreaksbr }} </div>
             </div>
             {% endfor %}
         </div>
@@ -24,8 +29,8 @@
 
     <div class="row">
         <div class="col">
-            <h2><b> LLM Output </b></h2>
-            <div class="ps-1 bg-light border border-3 rounded"> {{ anon_output.first.unmasked_output_text }} </div>
+            <h3><b> LLM Output </b></h3>
+            <div class="ps-1 bg-light border border-3 rounded"> {{ anon_output.first.llm_output_text|linebreaksbr }} </div>
         </div>
     </div>
 
@@ -50,7 +55,7 @@
             {% endfor %}
         </tbody>
     </table>
-    <button type="submit" class="btn btn-info text-light"> Submit </button>
+    <button type="submit" class="btn btn-dark text-light"> Submit </button>
 </form>
 <br>
 <br>
@@ -72,7 +77,10 @@
     </tbody>
 </table>
 
-</div>
+<!-- </div> -->
+
+<br>
+<br>
 
 <script>
     $("#qa").on("submit", function (event) {

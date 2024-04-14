@@ -189,7 +189,6 @@ def ner(request, session_id=None):
             default_dict = {k: v for k, v in default_dict.items() if k in entity_types}
             anon_input.choice_dict = json.dumps(default_dict)
             anon_input.save()
-            print(anon_input.choice_dict)
 
             # reload page with session id
             return HttpResponseRedirect(reverse("llm_anon_app:ner", args=(session_obj.session_id,)))
@@ -374,12 +373,14 @@ def send_to_llm(request):
         
         # run the LLM
         # TODO: replace with actual LLM API
-        llm_output = requests.post("https://jsonplaceholder.typicode.com/posts", 
-                                   data=f"{{\"input\" : \"{prompt.prompt_text} {anon_input.anon_input_text}\"}}", 
-                                   headers={"Content-Type" : "application/json"}).json()["input"]
+        # llm_output = requests.post("https://jsonplaceholder.typicode.com/posts", 
+        #                            data=f"{{\"input\" : \"{prompt.prompt_text} {anon_input.anon_input_text}\"}}", 
+        #                            headers={"Content-Type" : "application/json"}).json()["input"]
+        text_prompt = prompt.prompt_text + "\n" + anon_input.anon_input_text
+        response = model.generate_content(text_prompt, generation_config=genai.types.GenerationConfig(temperature=0.0))
         
-        anon_output.llm_output_text = llm_output
-        anon_output.unmasked_output_text = llm_output # TODO unmask output, prolly something like unmask(llm_output, choice_dict)
+        anon_output.llm_output_text = response.text
+        anon_output.unmasked_output_text = "TODO: Unmask" # TODO unmask output, prolly something like unmask(llm_output, choice_dict)
         anon_output.save()
 
         return JsonResponse({'status': 'success'}, status=200)
@@ -409,6 +410,7 @@ def evaluation(request, session_id):
 
     context = {
         "session": session_obj,
+        "anon_input": AnonymizedInput.objects.get(initial_input__session=session_obj),
         "anon_output": AnonymizedOutput.objects.filter(session=session_obj),
         "questions": EvalQuestion.objects.filter(use_case=session_obj.use_case),
         "answers": EvalAnswer.objects.order_by("-pub_date").filter(session_id=session_id),

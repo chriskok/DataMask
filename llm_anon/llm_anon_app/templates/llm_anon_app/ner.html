@@ -1,10 +1,10 @@
 {% extends "llm_anon_app/base.html" %}
 {% load crispy_forms_tags %}
 
-{% block title %}LLM Anonymization - NER{% endblock %}
+{% block title %}DataMask - NER{% endblock %}
 
 {% block content %}
-<h1>Session: {{ session.session_id }}</h1>
+<!-- <h1>Session: {{ session.session_id }}</h1> -->
 <br> 
 
 <h3><b>Input</b></h3>
@@ -12,8 +12,8 @@
     {% csrf_token %}
     {{ form|crispy }}
     <div class="d-flex flex-row">
-        <input class="btn btn-info text-light" type="submit" value="Submit">
-        <button id="use_case_dropdown" type="button" class="btn btn-info text-light dropdown-toggle ms-2" data-bs-toggle="dropdown" aria-expanded="false">Choose Use Case</button>
+        <input class="btn btn-dark text-light" type="submit" value="Submit">
+        <button id="use_case_dropdown" type="button" class="btn btn-dark text-light dropdown-toggle ms-2" data-bs-toggle="dropdown" aria-expanded="false">Choose Use Case</button>
         <ul class="dropdown-menu">
             <li><h6 class="dropdown-header">Use Cases</h6></li>
             {% for use_case in use_cases %}
@@ -46,7 +46,7 @@
             event.preventDefault();
         }
         else {
-            $("#use_case_dropdown").after('<div class="spinner-border text-info ms-auto" role="status"></div>')
+            $("#use_case_dropdown").after('<div class="spinner-border text-dark ms-auto" role="status"></div>')
         }
     }
 </script>
@@ -76,11 +76,11 @@
                 <!-- <option value="EVENT">Event</option> -->
                 <!-- <option value="WORK_OF_ART">Work of Art</option> -->
             </select>
-            <button type="button" class="btn btn-info text-light" onclick="getSelectedText()">Add Entity</button>
+            <button type="button" class="btn btn-dark text-light" onclick="getSelectedText()">Add Entity</button>
         </div>  
     </div>
     <div class="col-8">
-        <a class="btn btn-info text-light float-end" href="{% url 'llm_anon_app:masking' session.session_id %}">Next: Masking</a>
+        <a class="btn btn-dark text-light float-end" href="{% url 'llm_anon_app:masking' session.session_id %}">Next: Masking</a>
     </div>
 </div>
 
@@ -140,11 +140,11 @@
         'GPE': '#fdffb6',
         'DATE': '#caffbf',
         'TIME': '#9bf6ff',
-        'MONEY': '#a0c4ff',
+        'MONEY': '#ffd6a5',
         'PERCENT': '#bdb2ff',
         'QUANTITY': '#ffc6ff',
         'ORDINAL': '#ffadad',
-        'CARDINAL': '#ffd6a5',
+        'CARDINAL': '#a0c4ff',
         'LOCATION': '#ffc6ff',
         // 'EVENT': 'olive',
         // 'WORK_OF_ART': 'navy'
