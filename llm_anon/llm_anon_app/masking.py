@@ -16,49 +16,45 @@ def ensemble_choices(ner_dict):
 
 
 def complete_masking(entity, word, post_processed_word):
+    return_word = ""
     if entity == "PERCENT":
-        return "[REDEACTED]%"
+        return_word = "[REDEACTED]%"
     else:
-        return "[REDEACTED]"
+        return_word = "[REDEACTED]"
+    
+    "<b>" + return_word + "</b>"
 
 def perturbing(entity, word, post_processed_word):
+    return_word = ""
     if entity == "PERSON":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "ORGANIZATION":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "GPE":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "DATE":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "TIME":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "MONEY":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "PERCENT":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "QUANTITY":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "ORDINAL":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
     elif entity == "CARDINAL":
-        #TODO
-        return "TODO Perturb: "+entity
-    elif entity == "LOCATION'":
-        #TODO
-        return "TODO Perturb: "+entity
+        return_word = "TODO Perturb: "+entity
+    elif entity == "LOCATION":
+        return_word = "TODO Perturb: "+entity
     else:
-        return word
+        return_word = word
+
+    return "<b>" + return_word + "</b>"
 
 def group_based(entity, word, post_processed_word):
+    return_word = ""
     if entity == "PERSON":
         #TODO
         return "TODO group-based: "+entity
@@ -98,34 +94,36 @@ def group_based(entity, word, post_processed_word):
 def mask_main(text, ner_dict, choice_dict):
     #print("ner_dict: ", ner_dict, "  choice_dict: ",choice_dict)
     output_text = ""
-    for word in text.split():
-        #TODO create post_processing
-        post_processed_word = word.lower()
-        punc = '''!()-[]{};:'"\,<>./?@#$^&*_~'''
+    for paragraph in text.split("\n"):
+        for word in paragraph.split():
+            #TODO create post_processing
+            post_processed_word = word.lower()
+            punc = '''!()-[]{};:'"\,<>./?@#$^&*_~'''
 
-        if word[-1] in punc:
-            post_processed_word = post_processed_word[:-1]
-        if word[0] == "$":
-            post_processed_word = post_processed_word[1:]
-        
-        if post_processed_word in ner_dict:
-            entity = ner_dict[post_processed_word]["entity_type"]
-            choice = choice_dict[entity]
+            if word[-1] in punc:
+                post_processed_word = post_processed_word[:-1]
+            if word[0] == "$":
+                post_processed_word = post_processed_word[1:]
+            
+            if post_processed_word in ner_dict:
+                entity = ner_dict[post_processed_word]["entity_type"]
+                choice = choice_dict[entity]
 
-            if choice == "Complete Mask":
-                post_masked_word = complete_masking(entity, word, post_processed_word)
-                post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
-                output_text += post_added_word + " "
-            elif choice == "Perturb":
-                post_masked_word = perturbing(entity, word, post_processed_word)
-                post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
-                output_text += post_added_word + " "
-            elif choice == "Group-based":
-                post_masked_word = group_based(entity, word, post_processed_word)
-                post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
-                output_text += post_added_word + " "
+                if choice == "Complete Mask":
+                    post_masked_word = complete_masking(entity, word, post_processed_word)
+                    post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
+                    output_text += post_added_word + " "
+                elif choice == "Perturb":
+                    post_masked_word = perturbing(entity, word, post_processed_word)
+                    post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
+                    output_text += post_added_word + " "
+                elif choice == "Group-based":
+                    post_masked_word = group_based(entity, word, post_processed_word)
+                    post_added_word = word.lower().replace(post_processed_word, post_masked_word) 
+                    output_text += post_added_word + " "
+                else:
+                    output_text += word + " "
             else:
                 output_text += word + " "
-        else:
-            output_text += word + " "
+        output_text += "\n"
     return output_text

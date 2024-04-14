@@ -21,6 +21,14 @@ from flair.models import SequenceTagger
 from segtok.segmenter import split_single
 tagger = SequenceTagger.load("ner")
 
+from presidio_analyzer import AnalyzerEngine
+from presidio_anonymizer import AnonymizerEngine, DeanonymizeEngine, OperatorConfig
+from presidio_anonymizer.operators import Operator, OperatorType
+
+from typing import Dict
+from pprint import pprint
+import requests
+
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -82,6 +90,20 @@ def regex_ner(input_text):
         entities.append({"entity": match.group(), "entity_type": "CREDITCARD"})
     return entities
 
+def presidio_ner(input_text):
+    analyzer = AnalyzerEngine()
+    results = analyzer.analyze(text=input_text, language="en", entities=["PERSON", "LOCATION", "NRP", "DATE_TIME"], score_threshold=0.5)
+    entities = []
+    for result in results:
+        entity_type = result.entity_type
+        if (entity_type == "NRP"):
+            entity_type = "GPE"
+        elif (entity_type == "DATE_TIME"):
+            entity_type = "DATE"
+        entities.append({"entity": input_text[result.start:result.end], "entity_type": entity_type})
+
+    return entities
+
 def rename_entities(entities):
     # Following the NTLK convention for entity types: PERSON, ORGANIZATION, LOCATION, DATE, TIME, MONEY, PERCENT, FACILITY, GPE
     for entity in entities:
@@ -130,17 +152,21 @@ def ensemble_ner(input_text):
         futures_reg.append(executor.submit(rename_entities, spacy_ner(input_text_reg)))
         futures_reg.append(executor.submit(rename_entities, flair_ner(input_text_reg)))
         futures_reg.append(executor.submit(regex_ner, input_text_reg))
+        futures_reg.append(executor.submit(presidio_ner, input_text_reg))
+
         # second set with lowercase
         futures_lower.append(executor.submit(nltk_ner, input_text_lower))
         futures_lower.append(executor.submit(rename_entities, spacy_ner(input_text_lower)))
         futures_lower.append(executor.submit(rename_entities, flair_ner(input_text_lower)))
         futures_lower.append(executor.submit(regex_ner, input_text_lower))
+        futures_lower.append(executor.submit(presidio_ner, input_text_lower))
 
     # Retrieve the results
     nltk_entities = futures_reg[0].result() + futures_lower[0].result()
     spacy_entities = futures_reg[1].result() + futures_lower[1].result()
     flair_entities = futures_reg[2].result() + futures_lower[2].result()
     regex_entities = futures_reg[3].result() + futures_lower[3].result()
+    presidio_entities = futures_reg[4].result() + futures_lower[4].result()
 
     # TODO: allow user to select in the future
     # attach NER model to each of the entity dicts
@@ -154,7 +180,7 @@ def ensemble_ner(input_text):
     #     entity["model"] = "regex"
 
     # Combine the entities by splitting each of the entities by space, then only allowing entities that are in at least 2 methods
-    entities = nltk_entities + spacy_entities + flair_entities
+    entities = nltk_entities + spacy_entities + flair_entities + presidio_entities
 
     entities = split_entities(entities)
     count = {}
