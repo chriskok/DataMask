@@ -22,7 +22,7 @@ def complete_masking(entity, word, post_processed_word):
     else:
         return_word = "[REDEACTED]"
     
-    "<b>" + return_word + "</b>"
+    return "<b>" + return_word + "</b>"
 
 def perturbing(entity, word, post_processed_word):
     return_word = ""
