@@ -6,6 +6,7 @@ from django.views import generic
 
 import json
 import requests
+import markdown
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_community.vectorstores import FAISS
@@ -379,7 +380,7 @@ def send_to_llm(request):
         text_prompt = prompt.prompt_text + "\n" + anon_input.anon_input_text
         response = model.generate_content(text_prompt, generation_config=genai.types.GenerationConfig(temperature=0.0))
         
-        anon_output.llm_output_text = response.text
+        anon_output.llm_output_text = markdown.markdown(response.text)
         anon_output.unmasked_output_text = "TODO: Unmask" # TODO unmask output, prolly something like unmask(llm_output, choice_dict)
         anon_output.save()
 
