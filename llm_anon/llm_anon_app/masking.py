@@ -28,9 +28,9 @@ def ensemble_choices(ner_dict):
 def complete_masking(entity, word, post_processed_word):
     return_word = ""
     if entity == "PERCENT":
-        return_word = "[REDEACTED]%"
+        return_word = "[REDACTED]%"
     else:
-        return_word = "[REDEACTED]"
+        return_word = "[REDACTED]"
     
     return "<b>" + return_word + "</b>"
 
