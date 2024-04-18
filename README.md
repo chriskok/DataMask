@@ -41,9 +41,9 @@ The main goal of our project is to anonymize sensitive data in such a way that t
     - This allows researchers and analysts to work with the data more freely, without concerns over privacy violations. ## In-Depth Contextualization Explanation I
 
 ## Challenges
-    - Determining who our target customer would be (B2B or B2C)
-    - Determining how to identify important contextual elements without having the private data touch Gemini
-    - Getting the LLM to return structured data from an NLP prompt
+- Determining who our target customer would be (B2B or B2C)
+- Determining how to identify important contextual elements without having the private data touch Gemini
+- Getting the LLM to return structured data from an NLP prompt
 
 ## Accomplishments 
 We integrated a lot of new tools with each other in order to implement a rather complex model framework to solve a major issue that affects just about any company building on top of LLMs. We built a product that has real market value and provides a full application solution to a growing but unmet need.
@@ -52,9 +52,9 @@ We integrated a lot of new tools with each other in order to implement a rather 
 We learned how to integrate many of the new and developing AI tools together to make a production application.
 
 ## What's next for DataMask
-    - Add customization features designed for different niches beyond therapy, such as law, medicine, and research.
-    - Deploy everything to the cloud so that we can bring it into production.
-    - Fully transition from B2C to B2B.
+- Add customization features designed for different niches beyond therapy, such as law, medicine, and research.
+- Deploy everything to the cloud so that we can bring it into production.
+- Fully transition from B2C to B2B.
 
 ## Development Notes
 - After pulling, remember to run:
